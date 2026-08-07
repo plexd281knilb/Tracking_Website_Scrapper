@@ -53,6 +53,8 @@ class Release(Base):
     msrp = Column(String, default="N/A")
     details_url = Column(Text, default="")
     date_score = Column(Integer, default=202600)
+    parsed_date = Column(String, default="")
+    abs_days = Column(Integer, default=9999)
     is_tracked = Column(Boolean, default=False)
     scraped_at = Column(DateTime, default=datetime.utcnow)
 
@@ -109,6 +111,14 @@ def init_db():
             pass
         try:
             conn.execute(text("ALTER TABLE releases ADD COLUMN date_score INTEGER DEFAULT 202600"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE releases ADD COLUMN parsed_date VARCHAR DEFAULT ''"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE releases ADD COLUMN abs_days INTEGER DEFAULT 9999"))
         except Exception:
             pass
         conn.commit()

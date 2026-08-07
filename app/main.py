@@ -158,14 +158,20 @@ def get_products(db: Session = Depends(get_db)):
 
 
 @app.get("/api/releases")
-def get_releases(sort: str = "forward", db: Session = Depends(get_db)):
-    if sort == "backward":
+def get_releases(sort: str = "closest", db: Session = Depends(get_db)):
+    if sort == "closest":
+        # Default: Closest to today in BOTH directions (abs(days_from_today))
+        releases = db.query(Release).order_by(Release.abs_days.asc(), Release.id.desc()).all()
+    elif sort == "forward":
+        # Future releases first
+        releases = db.query(Release).order_by(Release.date_score.desc(), Release.id.desc()).all()
+    elif sort == "backward":
+        # Past releases first
         releases = db.query(Release).order_by(Release.date_score.asc(), Release.id.asc()).all()
     elif sort == "title":
         releases = db.query(Release).order_by(Release.title.asc()).all()
     else:
-        # Default: "forward" (Today Forward / Future Releases First)
-        releases = db.query(Release).order_by(Release.date_score.desc(), Release.id.desc()).all()
+        releases = db.query(Release).order_by(Release.abs_days.asc()).all()
 
     return [{
         "id": r.id,
@@ -175,6 +181,8 @@ def get_releases(sort: str = "forward", db: Session = Depends(get_db)):
         "msrp": r.msrp,
         "details_url": r.details_url,
         "date_score": r.date_score or 202600,
+        "parsed_date": r.parsed_date or "",
+        "abs_days": r.abs_days if r.abs_days is not None else 9999,
         "is_tracked": r.is_tracked,
         "scraped_at": r.scraped_at.isoformat() if r.scraped_at else None
     } for r in releases]

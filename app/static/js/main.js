@@ -138,7 +138,10 @@ document.addEventListener("DOMContentLoaded", () => {
             <tr>
                 <td><strong>${escapeHtml(r.title)}</strong></td>
                 <td>${escapeHtml(r.distillery || 'Unknown')}</td>
-                <td><span style="color: var(--accent-blue); font-weight: 500;">${r.release_date || 'TBD'}</span></td>
+                <td>
+                    <span style="color: var(--accent-blue); font-weight: 500;">${r.release_date || 'TBD'}</span>
+                    ${r.abs_days !== undefined && r.abs_days !== 9999 ? `<span style="font-size: 10px; background: rgba(99, 102, 241, 0.2); color: var(--accent-indigo); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">|${r.abs_days}d|</span>` : ''}
+                </td>
                 <td>${r.msrp || 'N/A'}</td>
                 <td>
                     <span class="badge-status ${r.is_tracked ? 'badge-instock' : 'badge-outstock'}">

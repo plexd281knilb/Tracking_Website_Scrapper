@@ -2,6 +2,8 @@ import httpx
 from bs4 import BeautifulSoup
 import logging
 import re
+import datetime
+import calendar
 from typing import List, Dict, Any
 from urllib.parse import urljoin
 from app.scrapers.base import DEFAULT_HEADERS
@@ -29,22 +31,55 @@ def extract_brand(title: str) -> str:
     return " ".join(parts[:2]) if len(parts) >= 2 else parts[0]
 
 
-def calculate_date_score(desc: str, title: str) -> int:
+def calculate_release_date_info(desc: str, title: str) -> Dict[str, Any]:
+    """
+    Parses release date string. If exact day is unavailable, defaults to
+    the END OF THE RELEASE MONTH, then computes abs(days from today).
+    """
+    today = datetime.date.today()
     full = f"{desc} {title}".lower()
+
+    # 1. Year
     year_match = re.search(r'202[3-9]', full)
-    year = int(year_match.group(0)) if year_match else 2026
+    year = int(year_match.group(0)) if year_match else today.year
 
-    season_score = 0
-    if 'winter' in full or 'q4' in full or 'december' in full or 'november' in full:
-        season_score = 12
-    elif 'fall' in full or 'autumn' in full or 'q3' in full or 'september' in full or 'october' in full:
-        season_score = 9
-    elif 'summer' in full or 'q2' in full or 'june' in full or 'july' in full or 'august' in full:
-        season_score = 6
-    elif 'spring' in full or 'q1' in full or 'march' in full or 'april' in full or 'may' in full:
-        season_score = 3
+    # 2. Month
+    month = 12
+    if 'january' in full or 'jan' in full: month = 1
+    elif 'february' in full or 'feb' in full: month = 2
+    elif 'march' in full or 'mar' in full: month = 3
+    elif 'spring' in full or 'q1' in full: month = 5
+    elif 'april' in full or 'apr' in full: month = 4
+    elif 'may' in full: month = 5
+    elif 'june' in full or 'jun' in full: month = 6
+    elif 'summer' in full or 'q2' in full: month = 8
+    elif 'july' in full or 'jul' in full: month = 7
+    elif 'august' in full or 'aug' in full: month = 8
+    elif 'september' in full or 'sep' in full: month = 9
+    elif 'fall' in full or 'autumn' in full or 'q3' in full: month = 11
+    elif 'october' in full or 'oct' in full: month = 10
+    elif 'november' in full or 'nov' in full: month = 11
+    elif 'december' in full or 'dec' in full or 'winter' in full or 'q4' in full: month = 12
 
-    return year * 100 + season_score
+    # 3. Day (Explicit day if present; otherwise default to END OF MONTH)
+    day_match = re.search(r'\b(3[01]|[12][0-9]|[1-9])\b', desc)
+    max_days = calendar.monthrange(year, month)[1]
+
+    if day_match and int(day_match.group(0)) <= max_days:
+        day = int(day_match.group(0))
+    else:
+        day = max_days
+
+    parsed_dt = datetime.date(year, month, day)
+    days_diff = (parsed_dt - today).days
+    abs_days = abs(days_diff)
+
+    return {
+        "parsed_date": parsed_dt.strftime("%Y-%m-%d"),
+        "abs_days": abs_days,
+        "days_diff": days_diff,
+        "date_score": year * 100 + month
+    }
 
 
 class BreakingBourbonScraper:
@@ -95,7 +130,7 @@ class BreakingBourbonScraper:
                     full_url = urljoin(self.url, href) if href else self.url
 
                     distillery = extract_brand(title)
-                    score = calculate_date_score(desc, title)
+                    date_info = calculate_release_date_info(desc, title)
 
                     releases.append({
                         "title": title,
@@ -103,7 +138,9 @@ class BreakingBourbonScraper:
                         "release_date": desc if desc else "Upcoming",
                         "msrp": msrp,
                         "details_url": full_url,
-                        "date_score": score
+                        "parsed_date": date_info["parsed_date"],
+                        "abs_days": date_info["abs_days"],
+                        "date_score": date_info["date_score"]
                     })
 
                 logger.info(f"Successfully scraped {len(releases)} releases from Breaking Bourbon.")
