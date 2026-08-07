@@ -62,8 +62,9 @@ BOURBON_KNOWLEDGE_BASE = [
 
 
 def call_gemini_api(bourbon_name: str, api_key: str) -> Dict[str, Any]:
-    """Calls Google Gemini 1.5 Flash API to generate specialized search keywords."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    """Calls Google Gemini API (Flash/Pro) to generate specialized search keywords."""
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     prompt = (
         f"You are a World-Class Bourbon Sommelier & Web Scraper Search Expert. "
         f"The user wants to track availability for: '{bourbon_name}'. "
