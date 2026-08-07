@@ -165,9 +165,9 @@ When a tracked item becomes **In Stock**, the system dispatches immediate email 
 2. **Unraid Container Setup**:
    - Add Container in Unraid Docker UI referencing GitHub repository build or Docker Hub / GitHub Container Registry (`ghcr.io`) image.
    - Bind Volume: `/mnt/user/appdata/spirit-tracker/data` -> `/app/data`
-   - Port Mapping: `8080:8080`
+   - Port Mapping: `10812:10812`
 3. **Environment Variables**:
-   - `PORT=8080`
+   - `PORT=10812`
    - `DATA_DIR=/app/data`
    - `SCRAPE_INTERVAL_MINUTES=30`
 

@@ -6,9 +6,9 @@ services:
     container_name: spirit-tracker
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "10812:10812"
     environment:
-      - PORT=8080
+      - PORT=10812
       - DATA_DIR=/app/data
       - SCRAPE_INTERVAL_MINUTES=30
     volumes:

@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080 \
+    PORT=10812 \
     DATA_DIR=/app/data
 
 WORKDIR /app
@@ -28,11 +28,11 @@ COPY . /app/
 RUN mkdir -p /app/data
 
 # Expose web server port
-EXPOSE 8080
+EXPOSE 10812
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8080/ || exit 1
+  CMD curl -f http://localhost:10812/ || exit 1
 
 # Start FastAPI application with Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10812"]
