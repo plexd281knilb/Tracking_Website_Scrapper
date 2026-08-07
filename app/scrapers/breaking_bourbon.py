@@ -1,6 +1,7 @@
 import httpx
 from bs4 import BeautifulSoup
 import logging
+import re
 from typing import List, Dict, Any
 from urllib.parse import urljoin
 from app.scrapers.base import DEFAULT_HEADERS
@@ -19,7 +20,7 @@ class BreakingBourbonScraper:
         logger.info(f"Fetching Breaking Bourbon Release Calendar: {self.url}")
 
         try:
-            with httpx.Client(headers=DEFAULT_HEADERS, timeout=15.0, follow_redirects=True) as client:
+            with httpx.Client(headers=DEFAULT_HEADERS, timeout=15.0, follow_redirects=True, verify=False) as client:
                 response = client.get(self.url)
                 if response.status_code != 200:
                     logger.warning(f"Breaking Bourbon returned status {response.status_code}")
@@ -27,47 +28,51 @@ class BreakingBourbonScraper:
 
                 soup = BeautifulSoup(response.text, "html.parser")
 
-                # Locate release blocks / table rows / cards
-                items = soup.select(".release-item, .release-card, .calendar-item, tr, .summary-item, article, [data-release]")
+                # Locate Webflow collection items
+                items = soup.select(".w-dyn-item")
                 if not items:
-                    items = soup.select("a[href*='/release-calendar/'], a[href*='/bourbon-rye-whiskey-reviews/']")
+                    items = soup.select(".release-item, .release-card, tr, article")
 
                 for item in items:
-                    title_elem = item.select_one(".title, .name, h2, h3, h4, .summary-title") or item
-                    title = title_elem.get_text(strip=True) if title_elem else ""
-
-                    if not title or len(title) < 4 or "calendar" in title.lower() or "newsletter" in title.lower():
+                    title_elem = item.select_one(".calendar-text.bold, .name-div, h2, h3, h4")
+                    if not title_elem:
                         continue
 
+                    title = title_elem.get_text(strip=True)
+                    if not title or len(title) < 3 or "calendar" in title.lower():
+                        continue
+
+                    # Clean up badge tags from title
+                    title = re.sub(r'NEW\s*INFO|NEW|EXPECTED\s*DATE', '', title).strip()
+
+                    # Description / Details
+                    desc_elem = item.select_one(".calendar-text.w-richtext, p")
+                    desc = desc_elem.get_text(strip=True) if desc_elem else ""
+
+                    # Extract MSRP ($XX)
+                    msrp_match = re.search(r'\$\d+(?:,\d+)?', desc)
+                    msrp = msrp_match.group(0) if msrp_match else "N/A"
+
                     # Extract details link
-                    link_elem = item if item.name == "a" else item.select_one("a[href]")
-                    href = link_elem["href"] if link_elem and link_elem.has_attr("href") else self.url
-                    full_url = urljoin(self.url, href)
+                    link_elem = item.select_one("a[href]:not([href='#'])")
+                    href = link_elem["href"] if link_elem else ""
+                    full_url = urljoin(self.url, href) if href else self.url
 
-                    # Extract metadata if present
-                    text = item.get_text()
-                    distillery = "Unknown"
-                    msrp = "N/A"
-                    release_date = "TBD"
-
-                    # Simple heuristic parsing for MSRP and Date inside element text
-                    if "msrp:" in text.lower():
-                        parts = text.lower().split("msrp:")
-                        if len(parts) > 1:
-                            msrp = parts[1].split("\n")[0].strip().split(" ")[0].upper()
-
-                    if "release:" in text.lower():
-                        parts = text.lower().split("release:")
-                        if len(parts) > 1:
-                            release_date = parts[1].split("\n")[0].strip()
+                    # Distillery heuristic
+                    distillery = title.split(":")[0].split("-")[0].strip()
+                    words = distillery.split(" ")
+                    if len(words) > 3:
+                        distillery = " ".join(words[:2])
 
                     releases.append({
                         "title": title,
                         "distillery": distillery,
-                        "release_date": release_date,
+                        "release_date": desc if desc else "Upcoming",
                         "msrp": msrp,
                         "details_url": full_url
                     })
+
+                logger.info(f"Successfully scraped {len(releases)} releases from Breaking Bourbon.")
 
         except Exception as e:
             logger.error(f"Error scraping Breaking Bourbon: {e}", exc_info=True)

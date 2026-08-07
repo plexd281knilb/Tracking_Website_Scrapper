@@ -66,6 +66,8 @@ async def lifespan(app: FastAPI):
     try:
         schedule_bg_job(interval)
         scheduler.start()
+        # Trigger immediate initial scrape on startup so calendar & products populate automatically
+        scheduler.add_job(run_all_scrapers, id="initial_startup_scrape", replace_existing=True)
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}", exc_info=True)
 
