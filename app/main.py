@@ -114,8 +114,14 @@ class SMTPSchema(BaseModel):
     recipient_email: str
 
 
+from app.ai_agent import generate_smart_keywords
+
 class ScheduleSchema(BaseModel):
     scrape_interval_minutes: int
+
+
+class AISuggestSchema(BaseModel):
+    bourbon_name: str
 
 
 # --- Web Page Route ---
@@ -306,6 +312,13 @@ def update_schedule(payload: ScheduleSchema, db: Session = Depends(get_db)):
         "scrape_interval_minutes": minutes,
         "next_run": next_run
     }
+
+
+@app.post("/api/ai/suggest-keywords")
+def ai_suggest_keywords(payload: AISuggestSchema):
+    if not payload.bourbon_name:
+        raise HTTPException(status_code=400, detail="Bourbon name is required.")
+    return generate_smart_keywords(payload.bourbon_name)
 
 
 if __name__ == "__main__":

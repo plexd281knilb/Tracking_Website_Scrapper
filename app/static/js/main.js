@@ -283,6 +283,48 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    const aiBtn = document.getElementById("ai-generate-btn");
+    if (aiBtn) {
+        aiBtn.addEventListener("click", async () => {
+            const trackerName = document.getElementById("tracker_name").value;
+            if (!trackerName) {
+                showToast("Please enter a Tracker Name first (e.g. Jack Daniel's Coy Hill)", "info");
+                return;
+            }
+
+            aiBtn.disabled = true;
+            aiBtn.innerHTML = "<span>⏳ Analyzing...</span>";
+
+            try {
+                const res = await fetch("/api/ai/suggest-keywords", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bourbon_name: trackerName })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById("tracker_include").value = data.include_keywords || "";
+                    document.getElementById("tracker_exclude").value = data.exclude_keywords || "";
+
+                    const badge = document.getElementById("ai-reasoning-badge");
+                    if (badge) {
+                        badge.style.display = "block";
+                        badge.innerHTML = `<strong>Matched:</strong> ${data.preset_matched}<br>${data.reasoning}`;
+                    }
+
+                    showToast(`🤖 AI generated optimal keywords for '${trackerName}'!`, "success");
+                } else {
+                    showToast("AI keyword generation failed.", "error");
+                }
+            } catch (err) {
+                showToast("Error connecting to AI Assistant.", "error");
+            } finally {
+                aiBtn.disabled = false;
+                aiBtn.innerHTML = "<span>✨ Generate Keywords</span>";
+            }
+        });
+    }
+
     async function deleteTracker(id) {
         try {
             const res = await fetch(`/api/trackers/${id}`, { method: "DELETE" });
