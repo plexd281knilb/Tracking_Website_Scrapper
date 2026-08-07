@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  spirit-tracker:
+    build: .
+    container_name: spirit-tracker
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATA_DIR=/app/data
+      - SCRAPE_INTERVAL_MINUTES=30
+    volumes:
+      - ./data:/app/data

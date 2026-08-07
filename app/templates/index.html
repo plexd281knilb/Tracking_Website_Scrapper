@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spirit Tracker - Bourbon Availability & Scraper</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo-icon">🥃</span>
+                <div class="brand-text">
+                    <h1>Spirit Tracker</h1>
+                    <span class="brand-subtitle">Bourbon & Release Monitor</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Stock Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="releases">
+                    <span class="icon">📅</span>
+                    <span>Release Calendar</span>
+                    <span class="badge" id="release-count-badge">0</span>
+                </button>
+                <button class="nav-item" data-tab="trackers">
+                    <span class="icon">🎯</span>
+                    <span>Target Trackers</span>
+                </button>
+                <button class="nav-item" data-tab="smtp">
+                    <span class="icon">✉️</span>
+                    <span>SMTP Settings</span>
+                </button>
+                <button class="nav-item" data-tab="logs">
+                    <span class="icon">📜</span>
+                    <span>System Logs</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="run-scrape-btn" class="btn btn-primary btn-block glow">
+                    <span class="btn-icon">⚡</span>
+                    <span>Run Scrape Now</span>
+                </button>
+                <div class="last-run-time" id="last-run-label">Last check: Loading...</div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Alert Toast Container -->
+            <div id="toast-container"></div>
+
+            <!-- Tab 1: Dashboard -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <div class="page-header">
+                    <div>
+                        <h2>Inventory Dashboard</h2>
+                        <p class="subtitle">Real-time availability of tracked bourbons across retail sites</p>
+                    </div>
+                    <div class="filter-controls">
+                        <input type="text" id="product-search" placeholder="Search tracked items..." class="form-input">
+                        <select id="stock-filter" class="form-select">
+                            <option value="all">All Items</option>
+                            <option value="in_stock">In Stock Only</option>
+                            <option value="out_of_stock">Out of Stock Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-total">📦</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-total">0</span>
+                            <span class="stat-label">Total Monitored Items</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-instock">✅</div>
+                        <div class="stat-info">
+                            <span class="stat-value stat-green" id="stat-in-stock">0</span>
+                            <span class="stat-label">In Stock Now</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-outstock">❌</div>
+                        <div class="stat-info">
+                            <span class="stat-value stat-amber" id="stat-out-stock">0</span>
+                            <span class="stat-label">Out of Stock</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-trackers">🎯</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-trackers-active">0</span>
+                            <span class="stat-label">Active Scrapers</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Table Card -->
+                <div class="card glass-card margin-top">
+                    <div class="card-header">
+                        <h3>Tracked Spirits Availability</h3>
+                        <span class="live-indicator"><span class="dot"></span> Auto Refresh Active</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Spirit Name</th>
+                                    <th>Retailer</th>
+                                    <th>Price</th>
+                                    <th>Last Checked</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading products...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Release Calendar -->
+            <section id="tab-releases" class="tab-pane">
+                <div class="page-header">
+                    <div>
+                        <h2>Bourbon Release Calendar</h2>
+                        <p class="subtitle">Upcoming & newly announced releases sourced from Breaking Bourbon</p>
+                    </div>
+                </div>
+                <div class="card glass-card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Release Title</th>
+                                    <th>Distillery</th>
+                                    <th>Expected Date</th>
+                                    <th>MSRP</th>
+                                    <th>Track Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="releases-table-body">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading releases...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Trackers Management -->
+            <section id="tab-trackers" class="tab-pane">
+                <div class="page-header">
+                    <div>
+                        <h2>Target Scraper Rules</h2>
+                        <p class="subtitle">Configure retailers, target URLs, and inclusion/exclusion keyword filters</p>
+                    </div>
+                    <button class="btn btn-success" id="add-tracker-btn">
+                        <span>➕ Add New Tracker</span>
+                    </button>
+                </div>
+                <div class="grid-layout" id="trackers-grid">
+                    <!-- Tracker cards populated dynamically -->
+                </div>
+            </section>
+
+            <!-- Tab 4: SMTP Settings -->
+            <section id="tab-smtp" class="tab-pane">
+                <div class="page-header">
+                    <div>
+                        <h2>SMTP Email Notification Setup</h2>
+                        <p class="subtitle">Configure your email server credentials for instant stock alerts</p>
+                    </div>
+                </div>
+                <div class="card glass-card max-width-form">
+                    <form id="smtp-form">
+                        <div class="form-group">
+                            <label for="smtp_host">SMTP Server Host</label>
+                            <input type="text" id="smtp_host" name="host" class="form-input" placeholder="e.g. smtp.gmail.com or mail.yourdomain.com" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="smtp_port">Port</label>
+                                <input type="number" id="smtp_port" name="port" class="form-input" placeholder="587 or 465" required>
+                            </div>
+                            <div class="form-group flex-center">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="smtp_use_tls" name="use_tls">
+                                    <span>Use STARTTLS</span>
+                                </label>
+                                <label class="checkbox-label margin-left">
+                                    <input type="checkbox" id="smtp_use_ssl" name="use_ssl">
+                                    <span>Use SSL</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp_username">Username / Account Email</label>
+                            <input type="text" id="smtp_username" name="username" class="form-input" placeholder="your-email@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp_password">Password / App Password</label>
+                            <input type="password" id="smtp_password" name="password" class="form-input" placeholder="••••••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp_sender">Sender Email ("From")</label>
+                            <input type="email" id="smtp_sender" name="sender_email" class="form-input" placeholder="alerts@spirit-tracker.local">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp_recipient">Alert Recipient Email ("To")</label>
+                            <input type="email" id="smtp_recipient" name="recipient_email" class="form-input" placeholder="you@domain.com" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">💾 Save SMTP Settings</button>
+                            <button type="button" id="test-email-btn" class="btn btn-secondary">🧪 Send Test Email</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Tab 5: System Logs -->
+            <section id="tab-logs" class="tab-pane">
+                <div class="page-header">
+                    <div>
+                        <h2>System Scrape Execution Logs</h2>
+                        <p class="subtitle">History of background and manual scrape operations</p>
+                    </div>
+                </div>
+                <div class="card glass-card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Status</th>
+                                    <th>Items Found</th>
+                                    <th>Message Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-table-body">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Tracker Modal -->
+    <div id="tracker-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Add Target Scraper Rule</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="tracker-form">
+                <input type="hidden" id="tracker_id">
+                <div class="form-group">
+                    <label for="tracker_name">Tracker Name / Description</label>
+                    <input type="text" id="tracker_name" class="form-input" placeholder="e.g. Jack Daniel's Coy Hill Tracker" required>
+                </div>
+                <div class="form-group">
+                    <label for="tracker_retailer">Retailer Driver</label>
+                    <select id="tracker_retailer" class="form-select" required>
+                        <option value="goody_goody">Goody Goody</option>
+                        <option value="total_wine">Total Wine</option>
+                        <option value="custom">Custom / Standard Scraper</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tracker_url">Target Search or Product Page URL</label>
+                    <input type="url" id="tracker_url" class="form-input" placeholder="https://..." required>
+                </div>
+                <div class="form-group">
+                    <label for="tracker_include">Include Keywords (Comma separated)</label>
+                    <input type="text" id="tracker_include" class="form-input" placeholder="e.g. coy hill, twice barreled, special release">
+                    <small class="help-text">Product title must contain at least one of these words/phrases.</small>
+                </div>
+                <div class="form-group">
+                    <label for="tracker_exclude">Exclude Keywords (Comma separated)</label>
+                    <input type="text" id="tracker_exclude" class="form-input" placeholder="e.g. old no 7, gentleman, honey, fire, apple">
+                    <small class="help-text">Any product matching these words will be filtered out.</small>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="tracker_enabled" checked>
+                        <span>Tracker Active</span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Tracker</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

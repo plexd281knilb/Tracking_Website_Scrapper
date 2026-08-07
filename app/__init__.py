@@ -1,0 +1,1 @@
+# Spirit Tracker package initialization
