@@ -29,6 +29,24 @@ def extract_brand(title: str) -> str:
     return " ".join(parts[:2]) if len(parts) >= 2 else parts[0]
 
 
+def calculate_date_score(desc: str, title: str) -> int:
+    full = f"{desc} {title}".lower()
+    year_match = re.search(r'202[3-9]', full)
+    year = int(year_match.group(0)) if year_match else 2026
+
+    season_score = 0
+    if 'winter' in full or 'q4' in full or 'december' in full or 'november' in full:
+        season_score = 12
+    elif 'fall' in full or 'autumn' in full or 'q3' in full or 'september' in full or 'october' in full:
+        season_score = 9
+    elif 'summer' in full or 'q2' in full or 'june' in full or 'july' in full or 'august' in full:
+        season_score = 6
+    elif 'spring' in full or 'q1' in full or 'march' in full or 'april' in full or 'may' in full:
+        season_score = 3
+
+    return year * 100 + season_score
+
+
 class BreakingBourbonScraper:
     def __init__(self, url: str = CALENDAR_URL):
         self.url = url
@@ -77,13 +95,15 @@ class BreakingBourbonScraper:
                     full_url = urljoin(self.url, href) if href else self.url
 
                     distillery = extract_brand(title)
+                    score = calculate_date_score(desc, title)
 
                     releases.append({
                         "title": title,
                         "distillery": distillery,
                         "release_date": desc if desc else "Upcoming",
                         "msrp": msrp,
-                        "details_url": full_url
+                        "details_url": full_url,
+                        "date_score": score
                     })
 
                 logger.info(f"Successfully scraped {len(releases)} releases from Breaking Bourbon.")

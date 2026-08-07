@@ -52,6 +52,7 @@ class Release(Base):
     release_date = Column(String, default="TBD")
     msrp = Column(String, default="N/A")
     details_url = Column(Text, default="")
+    date_score = Column(Integer, default=202600)
     is_tracked = Column(Boolean, default=False)
     scraped_at = Column(DateTime, default=datetime.utcnow)
 
@@ -104,6 +105,10 @@ def init_db():
             pass
         try:
             conn.execute(text("ALTER TABLE system_settings ADD COLUMN gemini_model VARCHAR DEFAULT 'gemini-2.5-flash'"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE releases ADD COLUMN date_score INTEGER DEFAULT 202600"))
         except Exception:
             pass
         conn.commit()

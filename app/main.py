@@ -158,8 +158,15 @@ def get_products(db: Session = Depends(get_db)):
 
 
 @app.get("/api/releases")
-def get_releases(db: Session = Depends(get_db)):
-    releases = db.query(Release).order_by(Release.scraped_at.desc()).all()
+def get_releases(sort: str = "forward", db: Session = Depends(get_db)):
+    if sort == "backward":
+        releases = db.query(Release).order_by(Release.date_score.asc(), Release.id.asc()).all()
+    elif sort == "title":
+        releases = db.query(Release).order_by(Release.title.asc()).all()
+    else:
+        # Default: "forward" (Today Forward / Future Releases First)
+        releases = db.query(Release).order_by(Release.date_score.desc(), Release.id.desc()).all()
+
     return [{
         "id": r.id,
         "title": r.title,
@@ -167,6 +174,7 @@ def get_releases(db: Session = Depends(get_db)):
         "release_date": r.release_date,
         "msrp": r.msrp,
         "details_url": r.details_url,
+        "date_score": r.date_score or 202600,
         "is_tracked": r.is_tracked,
         "scraped_at": r.scraped_at.isoformat() if r.scraped_at else None
     } for r in releases]

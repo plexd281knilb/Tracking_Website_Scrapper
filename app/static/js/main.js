@@ -110,12 +110,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Fetch & Render Release Calendar
     async function fetchReleases() {
         try {
-            const res = await fetch("/api/releases");
+            const sortVal = document.getElementById("release-sort-select") ? document.getElementById("release-sort-select").value : "forward";
+            const res = await fetch(`/api/releases?sort=${sortVal}`);
             releases = await res.json();
             renderReleases();
         } catch (err) {
             console.error("Failed to fetch releases", err);
         }
+    }
+
+    const releaseSortSelect = document.getElementById("release-sort-select");
+    if (releaseSortSelect) {
+        releaseSortSelect.addEventListener("change", fetchReleases);
     }
 
     function renderReleases() {

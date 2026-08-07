@@ -148,11 +148,13 @@ def run_all_scrapers(db: Session = None) -> dict:
                     release_date=r["release_date"],
                     msrp=r["msrp"],
                     details_url=r["details_url"],
+                    date_score=r.get("date_score", 202600),
                     scraped_at=datetime.utcnow()
                 ))
             else:
                 existing_release.release_date = r["release_date"]
                 existing_release.msrp = r["msrp"]
+                existing_release.date_score = r.get("date_score", 202600)
                 existing_release.scraped_at = datetime.utcnow()
 
         db.commit()
