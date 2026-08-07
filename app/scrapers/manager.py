@@ -124,7 +124,12 @@ def run_all_scrapers(db: Session = None) -> dict:
         bb_scraper = BreakingBourbonScraper()
         releases = bb_scraper.scrape()
 
+        seen_titles = set()
         for r in releases:
+            if not r["title"] or r["title"] in seen_titles:
+                continue
+            seen_titles.add(r["title"])
+
             existing_release = db.query(Release).filter(Release.title == r["title"]).first()
             if not existing_release:
                 db.add(Release(

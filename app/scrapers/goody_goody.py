@@ -17,11 +17,17 @@ class GoodyGoodyScraper:
     def scrape(self) -> List[Dict[str, Any]]:
         results = []
         logger.info(f"Fetching Goody Goody URL: {self.url}")
-        
+
         html_content = ""
 
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+
         try:
-            with httpx.Client(headers=DEFAULT_HEADERS, timeout=12.0, follow_redirects=True, verify=False) as client:
+            with httpx.Client(headers=headers, timeout=12.0, follow_redirects=True, verify=False) as client:
                 response = client.get(self.url)
                 if response.status_code == 200:
                     html_content = response.text
@@ -34,13 +40,21 @@ class GoodyGoodyScraper:
             try:
                 from playwright.sync_api import sync_playwright
                 with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
-                    context = browser.new_context(viewport={"width": 1280, "height": 800})
+                    browser = p.chromium.launch(
+                        headless=True,
+                        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+                    )
+                    context = browser.new_context(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                        viewport={"width": 1366, "height": 768}
+                    )
+                    context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
                     page = context.new_page()
                     page.goto(self.url, wait_until="domcontentloaded", timeout=20000)
-                    page.wait_for_timeout(2000)
+                    page.wait_for_timeout(3000)
                     html_content = page.content()
                     browser.close()
+                    logger.info("Successfully fetched Goody Goody via Playwright.")
             except Exception as pe:
                 logger.error(f"Playwright fallback failed for Goody Goody: {pe}")
 
@@ -48,7 +62,7 @@ class GoodyGoodyScraper:
             return results
 
         soup = BeautifulSoup(html_content, "html.parser")
-        cards = soup.select(".product-card, .product-item, .search-result-item, .card, [data-product-id]")
+        cards = soup.select(".product-card, .product-item, .search-result-item, .card, [data-product-id], article, div[class*='product']")
         if not cards:
             cards = soup.select("a[href*='/product'], a[href*='/p/']")
 
@@ -68,10 +82,8 @@ class GoodyGoodyScraper:
 
             card_text = card.get_text().lower()
             out_of_stock_indicators = ["out of stock", "sold out", "unavailable", "backordered"]
-            in_stock_indicators = ["in stock", "add to cart", "pick up", "deliver"]
-
             is_out_of_stock = any(indicator in card_text for indicator in out_of_stock_indicators)
-            is_in_stock = any(indicator in card_text for indicator in in_stock_indicators) or not is_out_of_stock
+            is_in_stock = not is_out_of_stock
 
             is_match, reason = matches_filter_rules(title, self.include_keywords, self.exclude_keywords)
             if not is_match:
@@ -86,4 +98,5 @@ class GoodyGoodyScraper:
                 "retailer": "goody_goody"
             })
 
+        logger.info(f"Goody Goody scraper found {len(results)} matching items.")
         return results
