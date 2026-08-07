@@ -32,6 +32,28 @@ def extract_brand(title: str) -> str:
     return " ".join(parts[:2]) if len(parts) >= 2 else parts[0]
 
 
+def clean_display_date(desc: str, title: str) -> str:
+    """Extracts ONLY the date string (e.g. 'August 2, 2026', 'Fall 2026'), stripping out proof and price."""
+    full = f"{desc} {title}"
+
+    # 1. Search for Month + Day + Year (e.g. "August 2, 2026" or "April 22, 2026")
+    m_match = re.search(r'\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:,?\s+202[3-9])?\b', full, re.IGNORECASE)
+    if m_match:
+        return m_match.group(0).strip().title()
+
+    # 2. Search for Season/Month + Year (e.g. "Spring 2026", "Fall 2026")
+    s_match = re.search(r'\b(?:january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|fall|autumn|winter|q[1-4])\s+202[3-9]\b', full, re.IGNORECASE)
+    if s_match:
+        return s_match.group(0).strip().title()
+
+    # 3. Fallback to Year
+    y_match = re.search(r'202[3-9]', full)
+    if y_match:
+        return f"{y_match.group(0)} Release"
+
+    return "Upcoming"
+
+
 def calculate_release_date_info(desc: str, title: str) -> Dict[str, Any]:
     """
     Parses release date string. If exact day is unavailable, defaults to
@@ -131,12 +153,13 @@ class BreakingBourbonScraper:
                     full_url = urljoin(self.url, href) if href else self.url
 
                     distillery = extract_brand(title)
+                    display_date = clean_display_date(desc, title)
                     date_info = calculate_release_date_info(desc, title)
 
                     releases.append({
                         "title": title,
                         "distillery": distillery,
-                        "release_date": desc if desc else "Upcoming",
+                        "release_date": display_date,
                         "msrp": msrp,
                         "details_url": full_url,
                         "parsed_date": date_info["parsed_date"],
