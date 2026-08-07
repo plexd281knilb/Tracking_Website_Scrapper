@@ -112,7 +112,7 @@ def init_db():
                     name="Jack Daniel's Coy Hill & Special Releases (Goody Goody)",
                     retailer="goody_goody",
                     url="https://www.goodygoody.com",
-                    include_keywords="coy hill, twice barreled, special release, 10 year, 12 year, heritage barrel",
+                    include_keywords="coy hill, twice barreled, special release, heritage barrel, jack daniel",
                     exclude_keywords="old no 7, gentleman, honey, fire, apple, rye, Tennessee whiskey 750ml standard",
                     enabled=True,
                 ),
@@ -120,13 +120,21 @@ def init_db():
                     name="Jack Daniel's Special Releases (Total Wine)",
                     retailer="total_wine",
                     url="https://www.totalwine.com/spirits/bourbon/c/000887",
-                    include_keywords="coy hill, twice barreled, special release, 10 year, 12 year, heritage barrel, single barrel barrel proof",
-                    exclude_keywords="old no 7, gentleman, honey, fire, apple, rye",
+                    include_keywords="coy hill, twice barreled, special release, heritage barrel, jack daniel",
+                    exclude_keywords="old no 7, gentleman, honey, fire, apple, rye, glenfiddich, glenlivet, buchanan, macallan",
                     enabled=True,
                 ),
             ]
             db.add_all(default_trackers)
             db.commit()
+
+        # Update existing trackers if they still contain generic scotch keywords
+        for t in db.query(Tracker).all():
+            if "10 year" in t.include_keywords or "12 year" in t.include_keywords:
+                if "jack" not in t.include_keywords.lower():
+                    t.include_keywords = "coy hill, twice barreled, special release, heritage barrel, jack daniel"
+                    t.exclude_keywords = "old no 7, gentleman, honey, fire, apple, rye, glenfiddich, glenlivet, buchanan, macallan"
+        db.commit()
     finally:
         db.close()
 

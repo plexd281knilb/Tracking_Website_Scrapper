@@ -5,6 +5,7 @@ from app.database import Tracker, Product, Release, ScrapeLog, SessionLocal
 from app.scrapers.goody_goody import GoodyGoodyScraper
 from app.scrapers.total_wine import TotalWineScraper
 from app.scrapers.breaking_bourbon import BreakingBourbonScraper
+from app.scrapers.base import matches_filter_rules
 from app.notifier import notify_stock_alert
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,15 @@ def run_all_scrapers(db: Session = None) -> dict:
                     exclude_keywords=tracker.exclude_keywords
                 )
                 scraped_products = scraper.scrape()
+
+            # Purge any legacy DB entries for this tracker that fail updated include/exclude rules
+            existing_db_products = db.query(Product).filter(Product.tracker_id == tracker.id).all()
+            for p in existing_db_products:
+                is_match, reason = matches_filter_rules(p.title, tracker.include_keywords, tracker.exclude_keywords)
+                if not is_match:
+                    logger.info(f"Purging non-matching product '{p.title}': {reason}")
+                    db.delete(p)
+            db.commit()
 
             for item in scraped_products:
                 items_found_count += 1

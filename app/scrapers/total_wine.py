@@ -16,7 +16,7 @@ class TotalWineScraper:
         self.exclude_keywords = exclude_keywords
 
     def scrape(self) -> List[Dict[str, Any]]:
-        results = []
+        raw_results = []
         logger.info(f"Fetching Total Wine URL: {self.url}")
 
         html_content = ""
@@ -63,7 +63,7 @@ class TotalWineScraper:
                 logger.error(f"Playwright fallback failed for Total Wine: {pe}")
 
         if not html_content:
-            return results
+            return []
 
         soup = BeautifulSoup(html_content, "html.parser")
         cards = soup.select("[data-at='product-card'], article, .productCard__1VzC1l1O, .product-card, div[class*='productCard']")
@@ -91,7 +91,7 @@ class TotalWineScraper:
             card_text = card.get_text().lower()
             in_stock = "out of stock" not in card_text and "unavailable" not in card_text
 
-            results.append({
+            raw_results.append({
                 "title": title,
                 "price": price,
                 "in_stock": in_stock,
@@ -100,5 +100,16 @@ class TotalWineScraper:
                 "retailer": "total_wine"
             })
 
-        logger.info(f"Total Wine scraper found {len(results)} matching items.")
-        return results
+        # Deduplicate results by title, prioritizing items with valid prices
+        dedup_map = {}
+        for item in raw_results:
+            title_key = item["title"].strip().lower()
+            if title_key not in dedup_map:
+                dedup_map[title_key] = item
+            else:
+                if dedup_map[title_key]["price"] == "N/A" and item["price"] != "N/A":
+                    dedup_map[title_key] = item
+
+        final_results = list(dedup_map.values())
+        logger.info(f"Total Wine scraper found {len(final_results)} unique matching items.")
+        return final_results

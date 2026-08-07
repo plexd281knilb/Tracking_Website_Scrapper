@@ -15,7 +15,7 @@ class GoodyGoodyScraper:
         self.exclude_keywords = exclude_keywords
 
     def scrape(self) -> List[Dict[str, Any]]:
-        results = []
+        raw_results = []
         logger.info(f"Fetching Goody Goody URL: {self.url}")
 
         html_content = ""
@@ -59,7 +59,7 @@ class GoodyGoodyScraper:
                 logger.error(f"Playwright fallback failed for Goody Goody: {pe}")
 
         if not html_content:
-            return results
+            return []
 
         soup = BeautifulSoup(html_content, "html.parser")
         cards = soup.select(".product-card, .product-item, .search-result-item, .card, [data-product-id], article, div[class*='product']")
@@ -89,7 +89,7 @@ class GoodyGoodyScraper:
             if not is_match:
                 continue
 
-            results.append({
+            raw_results.append({
                 "title": title,
                 "price": price,
                 "in_stock": is_in_stock,
@@ -98,5 +98,16 @@ class GoodyGoodyScraper:
                 "retailer": "goody_goody"
             })
 
-        logger.info(f"Goody Goody scraper found {len(results)} matching items.")
-        return results
+        # Deduplicate results by title
+        dedup_map = {}
+        for item in raw_results:
+            title_key = item["title"].strip().lower()
+            if title_key not in dedup_map:
+                dedup_map[title_key] = item
+            else:
+                if dedup_map[title_key]["price"] == "N/A" and item["price"] != "N/A":
+                    dedup_map[title_key] = item
+
+        final_results = list(dedup_map.values())
+        logger.info(f"Goody Goody scraper found {len(final_results)} unique matching items.")
+        return final_results
