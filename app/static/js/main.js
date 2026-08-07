@@ -150,15 +150,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Attach 1-click track button listeners
         document.querySelectorAll(".track-release-btn").forEach(btn => {
-            btn.addEventListener("click", () => {
+            btn.addEventListener("click", async () => {
                 const title = btn.getAttribute("data-title");
                 openTrackerModal({
                     name: `${title} Tracker`,
-                    retailer: 'goody_goody',
-                    url: `https://goodygoody.com/search?q=${encodeURIComponent(title)}`,
-                    include_keywords: title.toLowerCase(),
-                    exclude_keywords: 'old no 7, gentleman, honey, fire, apple'
+                    retailer: 'total_wine',
+                    url: `https://www.totalwine.com/spirits/bourbon/c/000887`,
+                    include_keywords: 'Generating AI keywords...',
+                    exclude_keywords: 'Generating AI keywords...'
                 });
+
+                try {
+                    const res = await fetch("/api/ai/suggest-keywords", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ bourbon_name: title })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        document.getElementById("tracker_include").value = data.include_keywords || title;
+                        document.getElementById("tracker_exclude").value = data.exclude_keywords || "";
+                        const badge = document.getElementById("ai-reasoning-badge");
+                        if (badge) {
+                            badge.style.display = "block";
+                            badge.innerHTML = `<strong>Matched:</strong> ${data.preset_matched}<br>${data.reasoning}`;
+                        }
+                        showToast(`🤖 AI keywords generated for '${title}'!`, "success");
+                    }
+                } catch (err) {
+                    document.getElementById("tracker_include").value = title;
+                    document.getElementById("tracker_exclude").value = "standard, premix";
+                }
             });
         });
     }

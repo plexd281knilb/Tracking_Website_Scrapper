@@ -10,6 +10,24 @@ logger = logging.getLogger(__name__)
 
 CALENDAR_URL = "https://www.breakingbourbon.com/release-calendar"
 
+KNOWN_BRANDS = [
+    "Jack Daniel's", "Buffalo Trace", "WhistlePig", "Penelope", "Old Forester",
+    "Maker's Mark", "Knob Creek", "Jim Beam", "James B. Beam", "Elijah Craig",
+    "1792", "Still Austin", "Little Book", "Widow Jane", "Westward", "Westland",
+    "Parker's Heritage", "King of Kentucky", "High West", "Dragon's Milk",
+    "Bernheim", "Barrell", "Weller", "Michter's", "Stagg", "Fireside", "Heaven Hill",
+    "Wild Turkey", "Russell's Reserve", "Woodford Reserve", "Larceny", "Shenk's", "Bomberger's"
+]
+
+
+def extract_brand(title: str) -> str:
+    title_clean = title.strip()
+    for brand in KNOWN_BRANDS:
+        if brand.lower() in title_clean.lower():
+            return brand
+    parts = title_clean.split(":")[0].split("-")[0].strip().split(" ")
+    return " ".join(parts[:2]) if len(parts) >= 2 else parts[0]
+
 
 class BreakingBourbonScraper:
     def __init__(self, url: str = CALENDAR_URL):
@@ -58,11 +76,7 @@ class BreakingBourbonScraper:
                     href = link_elem["href"] if link_elem else ""
                     full_url = urljoin(self.url, href) if href else self.url
 
-                    # Distillery heuristic
-                    distillery = title.split(":")[0].split("-")[0].strip()
-                    words = distillery.split(" ")
-                    if len(words) > 3:
-                        distillery = " ".join(words[:2])
+                    distillery = extract_brand(title)
 
                     releases.append({
                         "title": title,
