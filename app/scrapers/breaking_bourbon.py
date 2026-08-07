@@ -18,7 +18,8 @@ KNOWN_BRANDS = [
     "1792", "Still Austin", "Little Book", "Widow Jane", "Westward", "Westland",
     "Parker's Heritage", "King of Kentucky", "High West", "Dragon's Milk",
     "Bernheim", "Barrell", "Weller", "Michter's", "Stagg", "Fireside", "Heaven Hill",
-    "Wild Turkey", "Russell's Reserve", "Woodford Reserve", "Larceny", "Shenk's", "Bomberger's"
+    "Wild Turkey", "Russell's Reserve", "Woodford Reserve", "Larceny", "Shenk's", "Bomberger's",
+    "Augusta", "Green River", "Wenzel", "Hard Truth", "Lost Lantern", "Booker's", "Chattanooga"
 ]
 
 
