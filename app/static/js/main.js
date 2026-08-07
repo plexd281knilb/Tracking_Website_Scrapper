@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (targetTab === "dashboard") fetchProducts();
             if (targetTab === "releases") fetchReleases();
             if (targetTab === "trackers") fetchTrackers();
-            if (targetTab === "smtp") fetchSMTP();
+            if (targetTab === "smtp") { fetchSMTP(); fetchAISettings(); }
             if (targetTab === "logs") fetchLogs();
         });
     });
@@ -385,6 +385,49 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("Error saving SMTP settings", "error");
         }
     });
+
+    async function fetchAISettings() {
+        try {
+            const res = await fetch("/api/ai/settings");
+            const data = await res.json();
+            if (data) {
+                if (data.has_key) {
+                    document.getElementById("ai_gemini_key").value = data.masked_key;
+                }
+                if (data.gemini_model) {
+                    document.getElementById("ai_gemini_model").value = data.gemini_model;
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch AI settings", err);
+        }
+    }
+
+    const aiForm = document.getElementById("ai-settings-form");
+    if (aiForm) {
+        aiForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                gemini_api_key: document.getElementById("ai_gemini_key").value,
+                gemini_model: document.getElementById("ai_gemini_model").value
+            };
+            try {
+                const res = await fetch("/api/ai/settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showToast("🤖 Gemini AI settings saved!", "success");
+                    fetchAISettings();
+                } else {
+                    showToast("Failed to save AI settings.", "error");
+                }
+            } catch (err) {
+                showToast("Error saving AI settings.", "error");
+            }
+        });
+    }
 
     document.getElementById("test-email-btn").addEventListener("click", async () => {
         showToast("Sending test email...", "info");

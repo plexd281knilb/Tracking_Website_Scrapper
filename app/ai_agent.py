@@ -61,9 +61,10 @@ BOURBON_KNOWLEDGE_BASE = [
 ]
 
 
-def call_gemini_api(bourbon_name: str, api_key: str) -> Dict[str, Any]:
+def call_gemini_api(bourbon_name: str, api_key: str, model_name: str = "") -> Dict[str, Any]:
     """Calls Google Gemini API (Flash/Pro) to generate specialized search keywords."""
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    if not model_name:
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     prompt = (
         f"You are a World-Class Bourbon Sommelier & Web Scraper Search Expert. "
@@ -89,10 +90,10 @@ def call_gemini_api(bourbon_name: str, api_key: str) -> Dict[str, Any]:
                 parsed = json.loads(text_content)
                 return {
                     "bourbon_name": bourbon_name,
-                    "preset_matched": "Google Gemini 1.5 Flash Agent 🤖",
+                    "preset_matched": f"Google Gemini Agent ({model_name}) 🤖",
                     "include_keywords": parsed.get("include_keywords", ""),
                     "exclude_keywords": parsed.get("exclude_keywords", ""),
-                    "reasoning": parsed.get("reasoning", f"Gemini 1.5 generated custom keyword rules for '{bourbon_name}'.")
+                    "reasoning": parsed.get("reasoning", f"Gemini generated custom keyword rules for '{bourbon_name}'.")
                 }
             else:
                 logger.warning(f"Gemini API returned status {resp.status_code}. Falling back to local engine...")
@@ -102,18 +103,31 @@ def call_gemini_api(bourbon_name: str, api_key: str) -> Dict[str, Any]:
     return None
 
 
-def generate_smart_keywords(bourbon_name: str) -> Dict[str, Any]:
+def generate_smart_keywords(bourbon_name: str, api_key: str = "", model_name: str = "") -> Dict[str, Any]:
     """
     AI Bourbon Sommelier Engine: Analyzes a target bourbon name and generates
     optimized positive inclusion terms and negative exclusion terms.
-    Checks GEMINI_API_KEY environment variable first.
+    Checks parameter, DB system settings, or GEMINI_API_KEY environment variable.
     """
     clean_name = bourbon_name.strip().lower()
 
-    # 1. Try Google Gemini API if key is set
-    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    # 1. Try Google Gemini API if key is set via parameter, DB, or ENV
+    gemini_key = api_key or os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_key:
+        try:
+            from app.database import SessionLocal, SystemSetting
+            db = SessionLocal()
+            sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+            if sys_set and sys_set.gemini_api_key:
+                gemini_key = sys_set.gemini_api_key
+                if sys_set.gemini_model and not model_name:
+                    model_name = sys_set.gemini_model
+            db.close()
+        except Exception:
+            pass
+
     if gemini_key:
-        gemini_result = call_gemini_api(bourbon_name, gemini_key)
+        gemini_result = call_gemini_api(bourbon_name, gemini_key, model_name=model_name)
         if gemini_result:
             return gemini_result
 

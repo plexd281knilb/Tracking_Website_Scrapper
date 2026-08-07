@@ -124,6 +124,11 @@ class AISuggestSchema(BaseModel):
     bourbon_name: str
 
 
+class AISettingSchema(BaseModel):
+    gemini_api_key: Optional[str] = ""
+    gemini_model: Optional[str] = "gemini-2.5-flash"
+
+
 # --- Web Page Route ---
 @app.get("/", response_class=HTMLResponse)
 def index_page(request: Request):
@@ -312,6 +317,36 @@ def update_schedule(payload: ScheduleSchema, db: Session = Depends(get_db)):
         "scrape_interval_minutes": minutes,
         "next_run": next_run
     }
+
+
+@app.get("/api/ai/settings")
+def get_ai_settings(db: Session = Depends(get_db)):
+    sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+    key = sys_set.gemini_api_key if sys_set else ""
+    model = sys_set.gemini_model if sys_set and sys_set.gemini_model else "gemini-2.5-flash"
+    
+    masked_key = (key[:6] + "..." + key[-4:]) if len(key) > 10 else key
+    return {
+        "has_key": bool(key),
+        "masked_key": masked_key,
+        "gemini_model": model
+    }
+
+
+@app.post("/api/ai/settings")
+def save_ai_settings(payload: AISettingSchema, db: Session = Depends(get_db)):
+    sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+    if not sys_set:
+        sys_set = SystemSetting(id=1)
+        db.add(sys_set)
+
+    if payload.gemini_api_key is not None and not payload.gemini_api_key.startswith("..."):
+        sys_set.gemini_api_key = payload.gemini_api_key.strip()
+    if payload.gemini_model:
+        sys_set.gemini_model = payload.gemini_model.strip()
+
+    db.commit()
+    return {"status": "success"}
 
 
 @app.post("/api/ai/suggest-keywords")

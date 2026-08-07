@@ -75,6 +75,8 @@ class SystemSetting(Base):
 
     id = Column(Integer, primary_key=True, default=1)
     scrape_interval_minutes = Column(Integer, default=30)
+    gemini_api_key = Column(String, default="")
+    gemini_model = Column(String, default="gemini-2.5-flash")
 
 
 class ScrapeLog(Base):
@@ -87,10 +89,25 @@ class ScrapeLog(Base):
     items_found = Column(Integer, default=0)
 
 
+from sqlalchemy import text
+
 def init_db():
     from app.config import DATA_DIR
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+
+    # SQLite migration: ensure new columns exist on system_settings table
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN gemini_api_key VARCHAR DEFAULT ''"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN gemini_model VARCHAR DEFAULT 'gemini-2.5-flash'"))
+        except Exception:
+            pass
+        conn.commit()
+
     db = SessionLocal()
     try:
         # Ensure default SystemSetting record exists
