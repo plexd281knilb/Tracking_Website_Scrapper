@@ -99,11 +99,7 @@ class SMTPSchema(BaseModel):
 # --- Web Page Route ---
 @app.get("/", response_class=HTMLResponse)
 def index_page(request: Request):
-    try:
-        return templates.TemplateResponse(request=request, name="index.html")
-    except Exception as e:
-        logger.warning(f"Primary TemplateResponse failed, trying context fallback: {e}")
-        return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 # --- API Routes ---
