@@ -1,4 +1,7 @@
+import os
 import re
+import json
+import httpx
 import logging
 from typing import Dict, Any
 
@@ -58,14 +61,62 @@ BOURBON_KNOWLEDGE_BASE = [
 ]
 
 
+def call_gemini_api(bourbon_name: str, api_key: str) -> Dict[str, Any]:
+    """Calls Google Gemini 1.5 Flash API to generate specialized search keywords."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    prompt = (
+        f"You are a World-Class Bourbon Sommelier & Web Scraper Search Expert. "
+        f"The user wants to track availability for: '{bourbon_name}'. "
+        f"Generate optimized search keyword rules to find rare/special release bottles on retail websites while filtering out common/standard bottles. "
+        f"Respond ONLY with a raw JSON object with keys: "
+        f"'include_keywords' (comma separated string of positive keywords), "
+        f"'exclude_keywords' (comma separated string of negative terms to filter standard bottles), and "
+        f"'reasoning' (short 1-2 sentence explanation of your strategy)."
+    )
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"response_mime_type": "application/json"}
+    }
+
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, json=payload)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                text_content = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text_content)
+                return {
+                    "bourbon_name": bourbon_name,
+                    "preset_matched": "Google Gemini 1.5 Flash Agent 🤖",
+                    "include_keywords": parsed.get("include_keywords", ""),
+                    "exclude_keywords": parsed.get("exclude_keywords", ""),
+                    "reasoning": parsed.get("reasoning", f"Gemini 1.5 generated custom keyword rules for '{bourbon_name}'.")
+                }
+            else:
+                logger.warning(f"Gemini API returned status {resp.status_code}. Falling back to local engine...")
+    except Exception as e:
+        logger.warning(f"Gemini API request failed: {e}. Falling back to local engine...")
+
+    return None
+
+
 def generate_smart_keywords(bourbon_name: str) -> Dict[str, Any]:
     """
     AI Bourbon Sommelier Engine: Analyzes a target bourbon name and generates
     optimized positive inclusion terms and negative exclusion terms.
+    Checks GEMINI_API_KEY environment variable first.
     """
     clean_name = bourbon_name.strip().lower()
 
-    # Search knowledge base matches
+    # 1. Try Google Gemini API if key is set
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if gemini_key:
+        gemini_result = call_gemini_api(bourbon_name, gemini_key)
+        if gemini_result:
+            return gemini_result
+
+    # 2. Local Domain Knowledge Base search
     for rule in BOURBON_KNOWLEDGE_BASE:
         if re.search(rule["pattern"], clean_name):
             return {
@@ -76,14 +127,13 @@ def generate_smart_keywords(bourbon_name: str) -> Dict[str, Any]:
                 "reasoning": rule["reasoning"]
             }
 
-    # Generic Smart Fallback if no specific rule pattern matched
-    # Extracts main terms and auto-generates core excludes
+    # 3. Generic Smart Fallback if no specific rule pattern matched
     words = [w for w in re.split(r'\W+', clean_name) if len(w) > 2 and w not in ["the", "and", "bottle", "whiskey", "bourbon"]]
     main_terms = ", ".join(words) if words else clean_name
 
     return {
         "bourbon_name": bourbon_name,
-        "preset_matched": "Custom Bourbon Intelligence Model",
+        "preset_matched": "Built-in Bourbon Intelligence Agent",
         "include_keywords": main_terms,
         "exclude_keywords": "standard, premix, mini, RTD, cocktail, empty bottle, merchandise",
         "reasoning": f"Generated custom keyword filters for '{bourbon_name}' to focus on exact title matches while filtering out merch and premixed cocktails."
