@@ -11,9 +11,21 @@ An automated web scraper and notification application designed to track rare bou
 - 📅 **Breaking Bourbon Release Calendar**: Automatically parses and displays upcoming bourbon releases with 1-click tracking.
 - 📧 **SMTP Email Alerts**: Receive immediate email alerts when items switch to "In Stock". Includes an intuitive SMTP configuration page.
 - 🖥️ **Sleek Web Dashboard**: Modern dark-mode interface displaying real-time availability, price tracking, and manual scrape triggers.
-- 🐳 **Unraid & Docker Ready**: Containerized application ready to be deployed on Unraid via Docker and synced with GitHub.
+- 🐳 **Unraid & Docker Ready**: Containerized application ready to be deployed on Unraid via Docker.
+- ⚙️ **GitHub Actions CI/CD**: Automatic Docker image build and push to GitHub Container Registry (`ghcr.io`) on every push to `main`.
 
 ---
+
+## 🚀 Unraid Deployment
+
+1. **Pull Image in Unraid**:
+   - Repository: `ghcr.io/plexd281knilb/tracking_website_scrapper:latest`
+   - Container Port: `10812` -> Host Port: `10812`
+   - Volume Path: `/mnt/user/appdata/spirit-tracker/data` -> `/app/data`
+
+2. **Access Web Dashboard**:
+   - Open `http://<YOUR-UNRAID-IP>:10812` in your browser.
+
 
 ## 📂 Documentation & Reference
 
