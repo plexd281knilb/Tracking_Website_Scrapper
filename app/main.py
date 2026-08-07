@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import HOST, PORT, SCRAPE_INTERVAL_MINUTES
-from app.database import init_db, get_db, Tracker, Product, Release, SMTPSetting, ScrapeLog
+from app.database import init_db, get_db, Tracker, Product, Release, SMTPSetting, SystemSetting, ScrapeLog, SessionLocal
 from app.scrapers.manager import run_all_scrapers
 from app.notifier import send_test_email
 
@@ -31,6 +31,20 @@ logger = logging.getLogger("spirit_tracker")
 scheduler = BackgroundScheduler()
 
 
+def schedule_bg_job(minutes: int):
+    """Dynamically schedules or updates the background scrape job."""
+    if minutes < 1:
+        minutes = 1
+    logger.info(f"Scheduling background scraper job every {minutes} minutes.")
+    scheduler.add_job(
+        run_all_scrapers,
+        'interval',
+        minutes=minutes,
+        id="bg_scrape_job",
+        replace_existing=True
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup tasks
@@ -40,15 +54,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}", exc_info=True)
 
-    logger.info(f"Starting background scraper scheduler (interval: {SCRAPE_INTERVAL_MINUTES} minutes)...")
+    db = SessionLocal()
     try:
-        scheduler.add_job(
-            run_all_scrapers,
-            'interval',
-            minutes=SCRAPE_INTERVAL_MINUTES,
-            id="bg_scrape_job",
-            replace_existing=True
-        )
+        sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+        interval = sys_set.scrape_interval_minutes if sys_set else SCRAPE_INTERVAL_MINUTES
+    except Exception:
+        interval = SCRAPE_INTERVAL_MINUTES
+    finally:
+        db.close()
+
+    try:
+        schedule_bg_job(interval)
         scheduler.start()
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}", exc_info=True)
@@ -94,6 +110,10 @@ class SMTPSchema(BaseModel):
     use_ssl: bool = False
     sender_email: Optional[str] = ""
     recipient_email: str
+
+
+class ScheduleSchema(BaseModel):
+    scrape_interval_minutes: int
 
 
 # --- Web Page Route ---
@@ -244,6 +264,46 @@ def get_logs(db: Session = Depends(get_db)):
 def trigger_manual_scrape(db: Session = Depends(get_db)):
     result = run_all_scrapers(db)
     return result
+
+
+@app.get("/api/schedule")
+def get_schedule(db: Session = Depends(get_db)):
+    sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+    interval = sys_set.scrape_interval_minutes if sys_set else 30
+
+    job = scheduler.get_job("bg_scrape_job")
+    next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
+
+    return {
+        "scrape_interval_minutes": interval,
+        "next_run": next_run
+    }
+
+
+@app.post("/api/schedule")
+def update_schedule(payload: ScheduleSchema, db: Session = Depends(get_db)):
+    minutes = payload.scrape_interval_minutes
+    if minutes < 1 or minutes > 10080:
+        raise HTTPException(status_code=400, detail="Interval must be between 1 and 10080 minutes.")
+
+    sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+    if not sys_set:
+        sys_set = SystemSetting(id=1, scrape_interval_minutes=minutes)
+        db.add(sys_set)
+    else:
+        sys_set.scrape_interval_minutes = minutes
+    db.commit()
+
+    schedule_bg_job(minutes)
+
+    job = scheduler.get_job("bg_scrape_job")
+    next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
+
+    return {
+        "status": "success",
+        "scrape_interval_minutes": minutes,
+        "next_run": next_run
+    }
 
 
 if __name__ == "__main__":

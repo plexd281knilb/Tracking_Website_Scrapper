@@ -70,6 +70,13 @@ class SMTPSetting(Base):
     recipient_email = Column(String, default="")
 
 
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    scrape_interval_minutes = Column(Integer, default=30)
+
+
 class ScrapeLog(Base):
     __tablename__ = "scrape_logs"
 
@@ -86,6 +93,12 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        # Ensure default SystemSetting record exists
+        sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+        if not sys_set:
+            db.add(SystemSetting(id=1, scrape_interval_minutes=30))
+            db.commit()
+
         # Ensure default SMTP record exists
         smtp = db.query(SMTPSetting).filter(SMTPSetting.id == 1).first()
         if not smtp:

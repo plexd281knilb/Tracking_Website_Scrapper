@@ -388,6 +388,50 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // 6. Schedule Management
+    async function fetchSchedule() {
+        try {
+            const res = await fetch("/api/schedule");
+            const data = await res.json();
+            if (data) {
+                const select = document.getElementById("scrape-interval-select");
+                if (select) select.value = data.scrape_interval_minutes || 30;
+
+                const nextRunLabel = document.getElementById("next-run-label");
+                if (nextRunLabel) {
+                    nextRunLabel.textContent = data.next_run ? `Next check: ${formatDate(data.next_run)}` : "Next check: Scheduled";
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch schedule", err);
+        }
+    }
+
+    const scheduleSelect = document.getElementById("scrape-interval-select");
+    if (scheduleSelect) {
+        scheduleSelect.addEventListener("change", async () => {
+            const val = parseInt(scheduleSelect.value);
+            try {
+                const res = await fetch("/api/schedule", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ scrape_interval_minutes: val })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`⏱️ Scrape schedule updated to every ${val} minutes!`, "success");
+                    if (data.next_run) {
+                        document.getElementById("next-run-label").textContent = `Next check: ${formatDate(data.next_run)}`;
+                    }
+                } else {
+                    showToast("Failed to update schedule.", "error");
+                }
+            } catch (err) {
+                showToast("Error updating schedule.", "error");
+            }
+        });
+    }
+
     // Manual Scrape Trigger Button
     const scrapeBtn = document.getElementById("run-scrape-btn");
     scrapeBtn.addEventListener("click", async () => {
@@ -402,6 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 showToast(`Scrape completed! ${data.items_found} items parsed.`, "success");
                 fetchProducts();
                 fetchLogs();
+                fetchSchedule();
                 updateLastRunLabel();
             } else {
                 showToast("Scrape cycle failed.", "error");
@@ -434,6 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initial Load
     fetchProducts();
     fetchTrackers();
+    fetchSchedule();
     updateLastRunLabel();
     setInterval(fetchProducts, 30000); // Auto refresh dashboard every 30s
 });
