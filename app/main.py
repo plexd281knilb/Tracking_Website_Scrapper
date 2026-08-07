@@ -14,6 +14,12 @@ from app.database import init_db, get_db, Tracker, Product, Release, SMTPSetting
 from app.scrapers.manager import run_all_scrapers
 from app.notifier import send_test_email
 
+from pathlib import Path
+
+APP_DIR = Path(__file__).resolve().parent
+STATIC_DIR = APP_DIR / "static"
+TEMPLATES_DIR = APP_DIR / "templates"
+
 # Configure Logging
 logging.basicConfig(
     level=logging.INFO,
@@ -29,23 +35,32 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     # Startup tasks
     logger.info("Initializing Spirit Tracker database...")
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}", exc_info=True)
 
     logger.info(f"Starting background scraper scheduler (interval: {SCRAPE_INTERVAL_MINUTES} minutes)...")
-    scheduler.add_job(
-        run_all_scrapers,
-        'interval',
-        minutes=SCRAPE_INTERVAL_MINUTES,
-        id="bg_scrape_job",
-        replace_existing=True
-    )
-    scheduler.start()
+    try:
+        scheduler.add_job(
+            run_all_scrapers,
+            'interval',
+            minutes=SCRAPE_INTERVAL_MINUTES,
+            id="bg_scrape_job",
+            replace_existing=True
+        )
+        scheduler.start()
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}", exc_info=True)
 
     yield
 
     # Shutdown tasks
     logger.info("Shutting down background scheduler...")
-    scheduler.shutdown()
+    try:
+        scheduler.shutdown()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -55,9 +70,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Mount Static Files and Templates
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+# Mount Static Files and Templates using absolute paths
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 # --- Pydantic Schemas ---
@@ -84,7 +99,11 @@ class SMTPSchema(BaseModel):
 # --- Web Page Route ---
 @app.get("/", response_class=HTMLResponse)
 def index_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        return templates.TemplateResponse(request=request, name="index.html")
+    except Exception as e:
+        logger.warning(f"Primary TemplateResponse failed, trying context fallback: {e}")
+        return templates.TemplateResponse("index.html", {"request": request})
 
 
 # --- API Routes ---

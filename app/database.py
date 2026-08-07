@@ -81,6 +81,8 @@ class ScrapeLog(Base):
 
 
 def init_db():
+    from app.config import DATA_DIR
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
