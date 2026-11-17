@@ -6,7 +6,7 @@ import datetime
 import calendar
 from typing import List, Dict, Any
 from urllib.parse import urljoin
-from app.scrapers.base import DEFAULT_HEADERS
+from app.scrapers.base import DEFAULT_HEADERS, is_safe_public_url
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +111,13 @@ class BreakingBourbonScraper:
 
     def scrape(self) -> List[Dict[str, Any]]:
         releases = []
+        if not is_safe_public_url(self.url):
+            logger.warning(f"Blocked unsafe Breaking Bourbon URL: {self.url}")
+            return releases
         logger.info(f"Fetching Breaking Bourbon Release Calendar: {self.url}")
 
         try:
-            with httpx.Client(headers=DEFAULT_HEADERS, timeout=15.0, follow_redirects=True, verify=False) as client:
+            with httpx.Client(headers=DEFAULT_HEADERS, timeout=15.0, follow_redirects=True, verify=True) as client:
                 response = client.get(self.url)
                 if response.status_code != 200:
                     logger.warning(f"Breaking Bourbon returned status {response.status_code}")

@@ -1,18 +1,54 @@
 :root {
+    color-scheme: dark;
     --bg-main: #090d16;
     --bg-sidebar: #0f172a;
-    --bg-card: rgba(30, 41, 59, 0.7);
-    --border-card: rgba(255, 255, 255, 0.08);
+    --bg-card: rgba(30, 41, 59, 0.78);
+    --bg-input: rgba(15, 23, 42, 0.85);
+    --border-card: rgba(255, 255, 255, 0.1);
     --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent-blue: #3b82f6;
-    --accent-indigo: #6366f1;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --accent-blue: #2563eb;
+    --accent-indigo: #f59e0b;
     --accent-green: #10b981;
     --accent-amber: #f59e0b;
+    --accent-amber-dark: #d97706;
     --accent-red: #ef4444;
-    --accent-purple: #8b5cf6;
-    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.3);
+    --shadow-glow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+    --bg-main: #f8fafc;
+    --bg-sidebar: #ffffff;
+    --bg-card: #ffffff;
+    --bg-input: #ffffff;
+    --border-card: #cbd5e1;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --accent-amber: #b45309;
+    --accent-indigo: #b45309;
+    --shadow-glow: 0 4px 14px rgba(180, 83, 9, 0.16);
+}
+
+[data-theme="light"] .btn-secondary {
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+}
+
+[data-theme="light"] .btn-secondary:hover {
+    background-color: #e2e8f0;
+}
+
+[data-theme="light"] .nav-item:hover {
+    background-color: #f1f5f9;
+}
+
+[data-theme="light"] .mobile-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 * {
@@ -26,12 +62,44 @@ body {
     background-color: var(--bg-main);
     color: var(--text-primary);
     min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
+}
+
+.mobile-header {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-card);
+    padding: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 30;
+}
+
+.sidebar-backdrop.open {
+    display: block;
 }
 
 .app-container {
     display: flex;
     min-height: 100vh;
+    min-height: 100dvh;
 }
 
 /* Sidebar */
@@ -44,7 +112,10 @@ body {
     padding: 24px 16px;
     position: fixed;
     height: 100vh;
-    z-index: 10;
+    height: 100dvh;
+    overflow-y: auto;
+    z-index: 40;
+    transition: transform 0.25s ease;
 }
 
 .brand {
@@ -104,9 +175,9 @@ body {
 }
 
 .nav-item.active {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
-    color: var(--accent-blue);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.14));
+    color: var(--accent-amber);
+    border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .nav-item .icon {
@@ -115,13 +186,13 @@ body {
 
 .nav-item .badge {
     margin-left: auto;
-    background-color: rgba(99, 102, 241, 0.2);
-    color: var(--accent-indigo);
+    background-color: rgba(245, 158, 11, 0.2);
+    color: var(--accent-amber);
     font-size: 11px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 12px;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .sidebar-footer {
@@ -187,6 +258,7 @@ body {
 
 .stat-card {
     background: var(--bg-card);
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border-card);
     border-radius: 14px;
@@ -225,11 +297,12 @@ body {
 /* Glass Card */
 .glass-card {
     background: var(--bg-card);
+    -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border: 1px solid var(--border-card);
     border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .margin-top { margin-top: 24px; }
@@ -353,8 +426,8 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo));
-    color: white;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #090d16;
 }
 
 .btn-primary:hover {
@@ -401,7 +474,7 @@ body {
 }
 
 .form-input, .form-select {
-    background-color: rgba(15, 23, 42, 0.8);
+    background-color: var(--bg-input);
     border: 1px solid var(--border-card);
     color: var(--text-primary);
     padding: 10px 14px;
@@ -462,12 +535,13 @@ body {
 /* Grid Layout for Trackers */
 .grid-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 20px;
 }
 
 .tracker-card {
     background: var(--bg-card);
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border-card);
     border-radius: 14px;
@@ -541,10 +615,12 @@ body {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     z-index: 500;
     align-items: center;
     justify-content: center;
+    padding: 16px;
 }
 
 .modal.active { display: flex; }
@@ -552,6 +628,8 @@ body {
 .modal-content {
     width: 100%;
     max-width: 550px;
+    max-height: 90dvh;
+    overflow-y: auto;
     border-radius: 16px;
     padding: 24px;
 }
@@ -569,6 +647,8 @@ body {
     color: var(--text-secondary);
     font-size: 24px;
     cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .modal-footer {
@@ -576,4 +656,34 @@ body {
     justify-content: flex-end;
     gap: 12px;
     margin-top: 24px;
+}
+
+@media (max-width: 850px) {
+    .mobile-header { display: flex; }
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .main-content {
+        margin-left: 0;
+        padding: 18px 14px;
+        width: 100%;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .filter-controls, .form-row {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+    .btn, .mobile-menu-btn {
+        min-height: 44px;
+    }
+    input, select, textarea {
+        font-size: 16px !important;
+    }
 }

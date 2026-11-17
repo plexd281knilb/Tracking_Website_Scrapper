@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import logging
 from typing import List, Dict, Any
 from urllib.parse import urljoin
-from app.scrapers.base import DEFAULT_HEADERS, matches_filter_rules
+from app.scrapers.base import DEFAULT_HEADERS, is_safe_public_url, matches_filter_rules
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,9 @@ class GoodyGoodyScraper:
 
     def scrape(self) -> List[Dict[str, Any]]:
         raw_results = []
+        if not is_safe_public_url(self.url):
+            logger.warning(f"Blocked unsafe tracker URL: {self.url}")
+            return raw_results
         logger.info(f"Fetching Goody Goody URL: {self.url}")
 
         html_content = ""
@@ -27,7 +30,7 @@ class GoodyGoodyScraper:
         }
 
         try:
-            with httpx.Client(headers=headers, timeout=12.0, follow_redirects=True, verify=False) as client:
+            with httpx.Client(headers=headers, timeout=12.0, follow_redirects=True, verify=True) as client:
                 response = client.get(self.url)
                 if response.status_code == 200:
                     html_content = response.text

@@ -1,16 +1,19 @@
 import logging
+import os
+import secrets
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.config import HOST, PORT, SCRAPE_INTERVAL_MINUTES
+from app.config import HOST, PORT, SCRAPE_INTERVAL_MINUTES, SCRAPER_API_TOKEN
 from app.database import init_db, get_db, Tracker, Product, Release, SMTPSetting, SystemSetting, ScrapeLog, SessionLocal
+from app.scrapers.base import is_safe_public_url
 from app.scrapers.manager import run_all_scrapers
 from app.notifier import send_test_email
 
@@ -92,6 +95,25 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+def verify_optional_api_token(request: Request):
+    configured = os.getenv("SCRAPER_API_TOKEN") or os.getenv("ADMIN_PASSWORD") or SCRAPER_API_TOKEN
+    if not configured:
+        return True
+    auth_hdr = request.headers.get("authorization", "")
+    token = auth_hdr[7:].strip() if auth_hdr.lower().startswith("bearer ") else request.headers.get("x-api-token", "").strip()
+    if not token or not secrets.compare_digest(token, configured):
+        raise HTTPException(status_code=401, detail="Valid API token required.")
+    return True
+
 
 # --- Pydantic Schemas ---
 class TrackerSchema(BaseModel):
@@ -127,6 +149,18 @@ class AISuggestSchema(BaseModel):
 class AISettingSchema(BaseModel):
     gemini_api_key: Optional[str] = ""
     gemini_model: Optional[str] = "gemini-2.5-flash"
+
+
+@app.get("/favicon.svg")
+def favicon_svg():
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+        '<rect width="64" height="64" rx="14" fill="#090d16"/>'
+        '<path d="M22 14h20l-2 18a12 12 0 0 1-8 10v10h8v4H24v-4h8V42a12 12 0 0 1-8-10z" fill="#f59e0b"/>'
+        '<path d="M25 27h14l-.6 5a7 7 0 0 1-12.8 0z" fill="#d97706"/>'
+        '</svg>'
+    )
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 # --- Web Page Route ---
@@ -203,8 +237,10 @@ def get_trackers(db: Session = Depends(get_db)):
     } for t in trackers]
 
 
-@app.post("/api/trackers")
+@app.post("/api/trackers", dependencies=[Depends(verify_optional_api_token)])
 def create_tracker(payload: TrackerSchema, db: Session = Depends(get_db)):
+    if not is_safe_public_url(payload.url):
+        raise HTTPException(status_code=400, detail="Tracker URL must be a valid public http(s) address.")
     tracker = Tracker(**payload.model_dump())
     db.add(tracker)
     db.commit()
@@ -212,8 +248,10 @@ def create_tracker(payload: TrackerSchema, db: Session = Depends(get_db)):
     return {"status": "success", "id": tracker.id}
 
 
-@app.put("/api/trackers/{tracker_id}")
+@app.put("/api/trackers/{tracker_id}", dependencies=[Depends(verify_optional_api_token)])
 def update_tracker(tracker_id: int, payload: TrackerSchema, db: Session = Depends(get_db)):
+    if not is_safe_public_url(payload.url):
+        raise HTTPException(status_code=400, detail="Tracker URL must be a valid public http(s) address.")
     tracker = db.query(Tracker).filter(Tracker.id == tracker_id).first()
     if not tracker:
         raise HTTPException(status_code=404, detail="Tracker not found")
@@ -225,7 +263,7 @@ def update_tracker(tracker_id: int, payload: TrackerSchema, db: Session = Depend
     return {"status": "success"}
 
 
-@app.delete("/api/trackers/{tracker_id}")
+@app.delete("/api/trackers/{tracker_id}", dependencies=[Depends(verify_optional_api_token)])
 def delete_tracker(tracker_id: int, db: Session = Depends(get_db)):
     tracker = db.query(Tracker).filter(Tracker.id == tracker_id).first()
     if not tracker:
@@ -236,7 +274,7 @@ def delete_tracker(tracker_id: int, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 
-@app.get("/api/smtp")
+@app.get("/api/smtp", dependencies=[Depends(verify_optional_api_token)])
 def get_smtp(db: Session = Depends(get_db)):
     smtp = db.query(SMTPSetting).filter(SMTPSetting.id == 1).first()
     if not smtp:
@@ -245,7 +283,8 @@ def get_smtp(db: Session = Depends(get_db)):
         "host": smtp.host,
         "port": smtp.port,
         "username": smtp.username,
-        "password": smtp.password,
+        "password": "",
+        "has_password": bool(smtp.password),
         "use_tls": smtp.use_tls,
         "use_ssl": smtp.use_ssl,
         "sender_email": smtp.sender_email,
@@ -253,21 +292,24 @@ def get_smtp(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/api/smtp")
+@app.post("/api/smtp", dependencies=[Depends(verify_optional_api_token)])
 def save_smtp(payload: SMTPSchema, db: Session = Depends(get_db)):
     smtp = db.query(SMTPSetting).filter(SMTPSetting.id == 1).first()
     if not smtp:
         smtp = SMTPSetting(id=1)
         db.add(smtp)
 
-    for key, val in payload.model_dump().items():
+    data = payload.model_dump()
+    if not data.get("password"):
+        data.pop("password", None)
+    for key, val in data.items():
         setattr(smtp, key, val)
 
     db.commit()
     return {"status": "success"}
 
 
-@app.post("/api/smtp/test")
+@app.post("/api/smtp/test", dependencies=[Depends(verify_optional_api_token)])
 def trigger_test_email(db: Session = Depends(get_db)):
     try:
         send_test_email(db)
@@ -289,7 +331,7 @@ def get_logs(db: Session = Depends(get_db)):
     } for l in logs]
 
 
-@app.post("/api/scrape-now")
+@app.post("/api/scrape-now", dependencies=[Depends(verify_optional_api_token)])
 def trigger_manual_scrape(db: Session = Depends(get_db)):
     result = run_all_scrapers(db)
     return result
@@ -309,7 +351,7 @@ def get_schedule(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/api/schedule")
+@app.post("/api/schedule", dependencies=[Depends(verify_optional_api_token)])
 def update_schedule(payload: ScheduleSchema, db: Session = Depends(get_db)):
     minutes = payload.scrape_interval_minutes
     if minutes < 1 or minutes > 10080:
@@ -335,7 +377,7 @@ def update_schedule(payload: ScheduleSchema, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/ai/settings")
+@app.get("/api/ai/settings", dependencies=[Depends(verify_optional_api_token)])
 def get_ai_settings(db: Session = Depends(get_db)):
     sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
     key = sys_set.gemini_api_key if sys_set else ""
@@ -349,7 +391,7 @@ def get_ai_settings(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/api/ai/settings")
+@app.post("/api/ai/settings", dependencies=[Depends(verify_optional_api_token)])
 def save_ai_settings(payload: AISettingSchema, db: Session = Depends(get_db)):
     sys_set = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
     if not sys_set:
@@ -365,7 +407,7 @@ def save_ai_settings(payload: AISettingSchema, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 
-@app.post("/api/ai/suggest-keywords")
+@app.post("/api/ai/suggest-keywords", dependencies=[Depends(verify_optional_api_token)])
 def ai_suggest_keywords(payload: AISuggestSchema):
     if not payload.bourbon_name:
         raise HTTPException(status_code=400, detail="Bourbon name is required.")
@@ -374,4 +416,5 @@ def ai_suggest_keywords(payload: AISuggestSchema):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host=HOST, port=PORT, reload=True)
+    dev_reload = os.getenv("DEV_RELOAD", "false").lower() == "true"
+    uvicorn.run("app.main:app", host=HOST, port=PORT, reload=dev_reload)

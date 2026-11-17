@@ -4,7 +4,7 @@ import logging
 import json
 from typing import List, Dict, Any
 from urllib.parse import urljoin
-from app.scrapers.base import DEFAULT_HEADERS, matches_filter_rules
+from app.scrapers.base import DEFAULT_HEADERS, is_safe_public_url, matches_filter_rules
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,9 @@ class TotalWineScraper:
 
     def scrape(self) -> List[Dict[str, Any]]:
         raw_results = []
+        if not is_safe_public_url(self.url):
+            logger.warning(f"Blocked unsafe Total Wine URL: {self.url}")
+            return raw_results
         logger.info(f"Fetching Total Wine URL: {self.url}")
 
         html_content = ""
@@ -30,7 +33,7 @@ class TotalWineScraper:
         }
 
         try:
-            with httpx.Client(headers=headers, timeout=15.0, follow_redirects=True, verify=False) as client:
+            with httpx.Client(headers=headers, timeout=15.0, follow_redirects=True, verify=True) as client:
                 resp = client.get(self.url)
                 if resp.status_code == 200:
                     html_content = resp.text

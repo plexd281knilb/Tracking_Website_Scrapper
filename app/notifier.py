@@ -1,3 +1,4 @@
+import html
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -61,6 +62,13 @@ def notify_stock_alert(db: Session, product_title: str, price: str, url: str, re
         return False, "SMTP server not configured."
 
     subject = f"🥃 IN STOCK ALERT: {product_title}!"
+    safe_title = html.escape(str(product_title or ""))
+    safe_retailer = html.escape(str(retailer or "").upper())
+    safe_price = html.escape(str(price or "N/A"))
+    safe_url = str(url or "").strip()
+    if not safe_url.startswith(("http://", "https://")):
+        safe_url = "#"
+    safe_url_attr = html.escape(safe_url, quote=True)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -69,22 +77,22 @@ def notify_stock_alert(db: Session, product_title: str, price: str, url: str, re
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px; }}
             .card {{ background-color: #1e293b; border-radius: 12px; padding: 24px; max-width: 600px; margin: 0 auto; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
-            .header {{ font-size: 22px; font-weight: bold; color: #38bdf8; margin-bottom: 16px; border-bottom: 2px solid #334155; padding-bottom: 12px; }}
+            .header {{ font-size: 22px; font-weight: bold; color: #fbbf24; margin-bottom: 16px; border-bottom: 2px solid #334155; padding-bottom: 12px; }}
             .title {{ font-size: 18px; color: #f1f5f9; margin-bottom: 12px; }}
             .detail {{ font-size: 15px; color: #94a3b8; margin-bottom: 8px; }}
             .price {{ font-size: 20px; font-weight: bold; color: #4ade80; margin: 12px 0; }}
-            .btn {{ display: inline-block; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 16px; }}
+            .btn {{ display: inline-block; background: linear-gradient(135deg, #d97706, #f59e0b); color: #090d16 !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 16px; }}
             .footer {{ font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #334155; padding-top: 12px; }}
         </style>
     </head>
     <body>
         <div class="card">
             <div class="header">🥃 Spirit Tracker Alert</div>
-            <div class="title"><strong>{product_title}</strong> is now <strong>IN STOCK</strong>!</div>
-            <div class="detail"><strong>Retailer:</strong> {retailer.upper()}</div>
-            <div class="price">Price: {price}</div>
-            <a href="{url}" target="_blank" class="btn">View & Purchase Item</a>
-            <div class="footer">Sent automatically by your self-hosted Spirit Tracker & Scraper.</div>
+            <div class="title"><strong>{safe_title}</strong> is now <strong>IN STOCK</strong>!</div>
+            <div class="detail"><strong>Retailer:</strong> {safe_retailer}</div>
+            <div class="price">Price: {safe_price}</div>
+            <a href="{safe_url_attr}" target="_blank" rel="noopener noreferrer" class="btn">View &amp; Purchase Item</a>
+            <div class="footer">Sent automatically by your self-hosted Spirit Tracker &amp; Scraper.</div>
         </div>
     </body>
     </html>

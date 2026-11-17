@@ -10,3 +10,4 @@ DATABASE_URL = f"sqlite:///{DATA_DIR / 'track_bourbon.db'}"
 SCRAPE_INTERVAL_MINUTES = int(os.getenv("SCRAPE_INTERVAL_MINUTES", "30"))
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "10812"))
+SCRAPER_API_TOKEN = os.getenv("SCRAPER_API_TOKEN") or os.getenv("ADMIN_PASSWORD") or ""

@@ -1,4 +1,38 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Theme & Mobile Drawer Initialization
+    const applyTheme = (t) => {
+        const next = t === "light" ? "light" : "dark";
+        localStorage.setItem("spirit_tracker_theme", next);
+        document.documentElement.setAttribute("data-theme", next);
+        document.body.setAttribute("data-theme", next);
+        const deskBtn = document.getElementById("theme-toggle-btn");
+        if (deskBtn) deskBtn.textContent = next === "light" ? "☀️ Light Mode" : "🌙 Dark Mode";
+        const mobBtn = document.getElementById("theme-toggle-mobile");
+        if (mobBtn) mobBtn.textContent = next === "light" ? "☀️" : "🌙";
+    };
+    applyTheme(localStorage.getItem("spirit_tracker_theme") || "dark");
+    document.querySelectorAll(".theme-toggle-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const cur = document.documentElement.getAttribute("data-theme") || "dark";
+            applyTheme(cur === "light" ? "dark" : "light");
+        });
+    });
+
+    const sidebarEl = document.querySelector(".sidebar");
+    const backdropEl = document.getElementById("sidebar-backdrop");
+    const closeDrawer = () => {
+        if (sidebarEl) sidebarEl.classList.remove("open");
+        if (backdropEl) backdropEl.classList.remove("open");
+    };
+    const mobileMenuBtn = document.getElementById("mobile-menu-toggle");
+    if (mobileMenuBtn && sidebarEl && backdropEl) {
+        mobileMenuBtn.addEventListener("click", () => {
+            sidebarEl.classList.toggle("open");
+            backdropEl.classList.toggle("open");
+        });
+        backdropEl.addEventListener("click", closeDrawer);
+    }
+
     // State
     let products = [];
     let releases = [];
@@ -17,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             btn.classList.add("active");
             document.getElementById(`tab-${targetTab}`).classList.add("active");
+            closeDrawer();
 
             // Load data when tab opens
             if (targetTab === "dashboard") fetchProducts();
@@ -80,14 +115,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 </td>
                 <td><strong>${escapeHtml(p.title)}</strong></td>
                 <td>
-                    <span class="badge-retailer badge-${p.retailer || 'custom'}">
-                        ${(p.retailer || 'custom').replace('_', ' ')}
+                    <span class="badge-retailer badge-${escapeHtml(p.retailer || 'custom')}">
+                        ${escapeHtml((p.retailer || 'custom').replace('_', ' '))}
                     </span>
                 </td>
-                <td><strong style="color: var(--accent-green);">${p.price || 'N/A'}</strong></td>
+                <td><strong style="color: var(--accent-green);">${escapeHtml(p.price || 'N/A')}</strong></td>
                 <td style="font-size: 12px; color: var(--text-secondary);">${formatDate(p.last_checked)}</td>
                 <td>
-                    <a href="${p.url}" target="_blank" class="btn btn-secondary btn-sm">🔗 View Item</a>
+                    <a href="${escapeHtml(safeHttpUrl(p.url))}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">🔗 View Item</a>
                 </td>
             </tr>
         `).join('');
@@ -139,10 +174,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><strong>${escapeHtml(r.title)}</strong></td>
                 <td>${escapeHtml(r.distillery || 'Unknown')}</td>
                 <td>
-                    <span style="color: var(--accent-blue); font-weight: 500;">${r.release_date || 'TBD'}</span>
-                    ${r.abs_days !== undefined && r.abs_days !== 9999 ? `<span style="font-size: 10px; background: rgba(99, 102, 241, 0.2); color: var(--accent-indigo); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">|${r.abs_days}d|</span>` : ''}
+                    <span style="color: var(--accent-blue); font-weight: 500;">${escapeHtml(r.release_date || 'TBD')}</span>
+                    ${r.abs_days !== undefined && r.abs_days !== 9999 ? `<span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">|${Number(r.abs_days)}d|</span>` : ''}
                 </td>
-                <td>${r.msrp || 'N/A'}</td>
+                <td>${escapeHtml(r.msrp || 'N/A')}</td>
                 <td>
                     <span class="badge-status ${r.is_tracked ? 'badge-instock' : 'badge-outstock'}">
                         ${r.is_tracked ? 'TRACKED' : 'UNTRACKED'}
@@ -152,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <button class="btn btn-primary btn-sm track-release-btn" data-title="${escapeHtml(r.title)}">
                         ➕ Track This
                     </button>
-                    ${r.details_url ? `<a href="${r.details_url}" target="_blank" class="btn btn-secondary btn-sm">Read Info</a>` : ''}
+                    ${r.details_url ? `<a href="${escapeHtml(safeHttpUrl(r.details_url))}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Read Info</a>` : ''}
                 </td>
             </tr>
         `).join('');
@@ -182,7 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const badge = document.getElementById("ai-reasoning-badge");
                         if (badge) {
                             badge.style.display = "block";
-                            badge.innerHTML = `<strong>Matched:</strong> ${data.preset_matched}<br>${data.reasoning}`;
+                            badge.innerHTML = `<strong>Matched:</strong> ${escapeHtml(data.preset_matched || "")}<br>${escapeHtml(data.reasoning || "")}`;
                         }
                         showToast(`🤖 AI keywords generated for '${title}'!`, "success");
                     }
@@ -218,12 +253,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <h4 class="tracker-title">${escapeHtml(t.name)}</h4>
-                        <span class="badge-retailer badge-${t.retailer}">${t.retailer.replace('_', ' ')}</span>
+                        <span class="badge-retailer badge-${escapeHtml(t.retailer)}">${escapeHtml(String(t.retailer || '').replace('_', ' '))}</span>
                     </div>
                     <div class="tracker-url">${escapeHtml(t.url)}</div>
                     <div class="tracker-rules">
-                        <div><strong>Include:</strong> ${t.include_keywords || 'None (All)'}</div>
-                        <div style="margin-top: 4px;"><strong>Exclude:</strong> ${t.exclude_keywords || 'None'}</div>
+                        <div><strong>Include:</strong> ${escapeHtml(t.include_keywords || 'None (All)')}</div>
+                        <div style="margin-top: 4px;"><strong>Exclude:</strong> ${escapeHtml(t.exclude_keywords || 'None')}</div>
                     </div>
                 </div>
                 <div class="tracker-actions">
@@ -340,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const badge = document.getElementById("ai-reasoning-badge");
                     if (badge) {
                         badge.style.display = "block";
-                        badge.innerHTML = `<strong>Matched:</strong> ${data.preset_matched}<br>${data.reasoning}`;
+                        badge.innerHTML = `<strong>Matched:</strong> ${escapeHtml(data.preset_matched || "")}<br>${escapeHtml(data.reasoning || "")}`;
                     }
 
                     showToast(`🤖 AI generated optimal keywords for '${trackerName}'!`, "success");
@@ -377,7 +412,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById("smtp_host").value = data.host || "";
                 document.getElementById("smtp_port").value = data.port || 587;
                 document.getElementById("smtp_username").value = data.username || "";
-                document.getElementById("smtp_password").value = data.password || "";
+                const passEl = document.getElementById("smtp_password");
+                passEl.value = "";
+                passEl.placeholder = data.has_password ? "Configured (leave blank to keep current)" : "App password / SMTP secret";
                 document.getElementById("smtp_use_tls").checked = data.use_tls !== false;
                 document.getElementById("smtp_use_ssl").checked = data.use_ssl === true;
                 document.getElementById("smtp_sender").value = data.sender_email || "";
@@ -587,9 +624,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return date.toLocaleString();
     }
 
+    function safeHttpUrl(url) {
+        const s = String(url || "").trim();
+        return /^https?:\/\//i.test(s) ? s : "#";
+    }
+
     function escapeHtml(str) {
         if (!str) return "";
-        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 
     // Initial Load
